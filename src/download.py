@@ -19,6 +19,11 @@ if __name__ == "__main__":
         dest = RAW / f"demanddata_{year}.csv"
         url = f"{BASE}/{rid}/download/demanddata_{year}.csv"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req) as r, open(dest, "wb") as f:
-            f.write(r.read())
+        with urllib.request.urlopen(req) as r:
+            body = r.read()
+        # a redirect that lands on an error page returns a small HTML blob, not a
+        # CSV; fail loudly here instead of letting the parser guess at it later
+        if len(body) < 500_000 or not body.lstrip()[:1].isalpha():
+            raise RuntimeError(f"{year}: expected a CSV, got {len(body):,} bytes")
+        dest.write_bytes(body)
         print(f"{year}: {dest.stat().st_size:,} bytes")

@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from src.data import (make_series, add_features, chronological_split,
-                      FEATURES, TARGET, load_half_hourly, to_daily)
+                      FEATURES, TARGET)
 from src.models import build_models, evaluate, seasonal_naive, run_all
 
 
