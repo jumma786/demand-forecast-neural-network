@@ -1,8 +1,8 @@
 {
   "winner": "ridge",
-  "winner_mae": 3.8059897327667973,
+  "winner_mae": 985.7286455892113,
   "best_mlp": "mlp_deep",
-  "best_mlp_mae": 4.984131002222626,
-  "mlp_gap_vs_winner_mae": 1.1781412694558289,
+  "best_mlp_mae": 1040.052402928574,
+  "mlp_gap_vs_winner_mae": 54.32375733936283,
   "mlp_beats_seasonal_naive": true
 }

@@ -42,7 +42,7 @@ def evaluate(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
 
 
 def run_all(train: pd.DataFrame, test: pd.DataFrame, features: list,
-            target: str = "demand_ml_d", seed: int = 42) -> pd.DataFrame:
+            target: str = "demand_mw", seed: int = 42) -> pd.DataFrame:
     Xtr, ytr = train[features], train[target].to_numpy()
     Xte, yte = test[features], test[target].to_numpy()
 

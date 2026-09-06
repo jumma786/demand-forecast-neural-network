@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import numpy as np
 import pandas as pd
-from src.data import make_series, add_features, chronological_split, FEATURES
+from src.data import make_series, add_features, chronological_split, FEATURES, TARGET
 from src.models import run_all
 
 OUT = Path("output"); OUT.mkdir(exist_ok=True)
@@ -13,14 +13,14 @@ train, test = chronological_split(df, test_days=365)
 print(f"train {train.index.min().date()} to {train.index.max().date()}  n={len(train)}")
 print(f"test  {test.index.min().date()} to {test.index.max().date()}  n={len(test)}\n")
 
-results = run_all(train, test, FEATURES)
+results = run_all(train, test, FEATURES, target=TARGET)
 print(results.to_string(index=False))
 results.to_csv(OUT / "results.csv", index=False)
 
 # stability across seeds: is any ranking difference real or just noise?
 runs = []
 for s in (0, 1, 2, 3, 4):
-    r = run_all(train, test, FEATURES, seed=s).set_index("model")["mae"]
+    r = run_all(train, test, FEATURES, target=TARGET, seed=s).set_index("model")["mae"]
     runs.append(r.rename(s))
 stab = pd.concat(runs, axis=1)
 stab["mean"] = stab.mean(axis=1); stab["std"] = stab.iloc[:, :5].std(axis=1)

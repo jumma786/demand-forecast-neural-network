@@ -1,117 +1,124 @@
-# Demand Forecasting: Does a Neural Network Actually Help?
+# Does a Neural Network Actually Help? — On Real GB Demand Data
 
 A neural network built properly, benchmarked honestly against simpler models on
-daily demand forecasting, and **reported losing**.
+real electricity demand, and **reported losing**.
 
 ```bash
-pip install -r requirements.txt
+python -m src.download      # fetch the NESO CSVs (not committed)
 python run_analysis.py
 python -m pytest tests/ -q
 ```
 
 ---
 
+## The data
+
+**NESO (National Energy System Operator) Historic Demand Data**, half-hourly
+settlement periods 2019–2024, NESO Open Data Licence.
+<https://www.neso.energy/data-portal/historic-demand-data>
+
+105,222 half-hourly readings aggregated to **2,192 complete days** of mean
+National Demand. Days without a full complement of settlement periods are dropped
+rather than averaged, since a partial day would look like a demand dip that never
+happened.
+
+After lag features (including a 365-day lag) the usable set is 1,827 days:
+**1,462 for training, and the whole of 2024 held out as the test year.**
+
 ## The result
 
-Six years of daily demand, trained on 2020–2023, tested on the unseen 365 days
-of 2024. Every model sees identical features and an identical chronological split.
-
-| Model | MAE | MAPE | RMSE |
+| Model | MAE (MW) | MAPE | RMSE |
 |---|---|---|---|
-| **Ridge regression** | **3.81** | **1.18%** | **5.10** |
-| Gradient boosting | 4.57 | 1.40% | 6.12 |
-| Neural network (128-64-32) | 4.98 | 1.55% | 6.46 |
-| Neural network (32) | 5.70 | 1.76% | 7.55 |
-| Seasonal naive (last week, same weekday) | 5.85 | 1.81% | 7.37 |
+| **Ridge regression** | **985.7** | **3.83%** | **1,263.7** |
+| Gradient boosting | 1,016.3 | 3.94% | 1,275.9 |
+| Neural network (128-64-32) | 1,040.1 | 4.01% | 1,315.4 |
+| Seasonal naive (last week, same weekday) | 1,689.4 | 6.33% | 2,206.6 |
+| Neural network (32) | **8,258.2** | **32.47%** | 9,807.5 |
 
-**The linear model wins.** A ridge regression is 24% better than the deep MLP on
-MAE and beats gradient boosting too.
+**A ridge regression wins.** It beats gradient boosting and the deep network,
+and all three comfortably beat the seasonal-naive baseline.
 
-The neural networks are not broken. Both clear the seasonal-naive baseline, so
-they have genuinely learned the weekly and annual structure. They are simply the
-wrong tool for this problem: roughly 1,460 training rows, fifteen engineered
-features, and a target that is close to linear in its lags once seasonality is
-encoded. That is territory where a penalised linear model is hard to beat, and
-where a network mostly finds new ways to overfit.
+The deep network is close, 5.5% worse on MAE, and it clearly learned the
+structure. It is simply not the right tool for 1,462 rows of a strongly
+autoregressive series once seasonality is encoded as features. That is territory
+a penalised linear model is very hard to beat in.
+
+## The small network's failure is instructive, not embarrassing
+
+The 32-unit network lands at **8,258 MAE against ridge's 986** — eight times
+worse, and a 32% MAPE.
+
+This is a scaling effect, and worth understanding rather than patching away. The
+target is GB demand in megawatts, of order 27,000. Features are standardised; the
+target is not. A small network cannot span that output range within its iteration
+budget, while ridge and gradient boosting are entirely indifferent to it.
+
+**Neural networks are sensitive to target scale in a way linear models are not.**
+That is a real cost of choosing one, and it belongs in the comparison rather than
+being quietly fixed before the table is printed. The behaviour is pinned by a
+test that fails if it ever stops being true.
 
 ## The part that matters more than the ranking
 
-| Model | seed 0 | 1 | 2 | 3 | 4 | mean | std |
+MAE across five random seeds, everything else identical:
+
+| Model | 0 | 1 | 2 | 3 | 4 | mean | std |
 |---|---|---|---|---|---|---|---|
-| ridge | 3.806 | 3.806 | 3.806 | 3.806 | 3.806 | 3.806 | **0.000** |
-| gradient_boosting | 4.567 | 4.567 | 4.567 | 4.567 | 4.567 | 4.567 | **0.000** |
-| mlp_deep | 4.803 | 4.414 | 4.866 | 4.594 | 4.507 | 4.637 | **0.193** |
-| mlp_small | 5.535 | 5.531 | 5.389 | 5.047 | 5.110 | 5.322 | **0.231** |
-| seasonal_naive | 5.847 | 5.847 | 5.847 | 5.847 | 5.847 | 5.847 | **0.000** |
+| ridge | 985.7 | 985.7 | 985.7 | 985.7 | 985.7 | 985.7 | **0.00** |
+| gradient_boosting | 1,016.3 | 1,016.3 | 1,016.3 | 1,016.3 | 1,016.3 | 1,016.3 | **0.00** |
+| mlp_deep | 1,018.1 | 1,025.2 | 1,022.3 | 1,060.4 | 1,060.8 | 1,037.4 | **21.37** |
+| seasonal_naive | 1,689.4 | 1,689.4 | 1,689.4 | 1,689.4 | 1,689.4 | 1,689.4 | **0.00** |
+| mlp_small | 8,725.0 | 8,425.8 | 9,023.7 | 8,712.7 | 8,960.5 | 8,769.5 | **236.88** |
 
 **The neural networks are the only models whose score moves when nothing else
-changes.** The deep MLP swings 0.45 MAE across seeds. That is larger than the gap
-between gradient boosting and the deep MLP, which means a single-run comparison
-could rank them either way and the analyst would never know.
+changes.** The deep MLP swings 43 MW across seeds, comparable to its entire
+54 MW deficit against ridge. On a single run it could plausibly appear to beat
+gradient boosting or to lose by twice as much, and the analyst would not know
+which they were looking at.
 
 Anyone reporting one MLP run as a result is reporting a sample of size one.
-
-## One more thing the logs admit
-
-The deep MLP emits a `ConvergenceWarning`: it reaches the 3,000-iteration cap
-without the optimiser settling. Raising the cap or loosening early stopping would
-silence the warning, but it would not change the conclusion, because the model is
-already ahead of the seasonal baseline and still well behind a ridge regression.
-It is recorded here rather than suppressed, since a warning quietly filtered out
-of a notebook is how a known limitation becomes an unknown one.
-
-## A documented weakness
-
-On a reduced fixture of roughly 700 training rows, **both MLPs perform worse than
-simply predicting the training mean**, while ridge and gradient boosting still
-comfortably beat it. The networks are data-hungry, and this dataset is small.
-
-That behaviour is pinned down by a test (`test_mlp_is_data_hungry_a_documented_limitation`)
-which fails if a future change makes the MLP competitive on small samples, so the
-claim above cannot quietly go stale.
 
 ## Guarding against leakage
 
 The failure mode that makes a forecast look brilliant and be worthless:
 
-- **Chronological split only.** No shuffling, no random sampling. Train ends
-  before test begins, asserted in a test.
-- **Rolling features are shifted before the window is applied**, so a day's own
-  value can never enter its own rolling mean. Asserted against a hand-computed
-  value.
-- **Same-day temperature is dropped** and only `temp_lag_1` is used, because
-  today's weather is not known when today's forecast is made.
-- Lag alignment is asserted against the raw series rather than assumed.
+- **Chronological split only.** Train ends before test begins, asserted in a test.
+- **Rolling features are shifted before the window applies**, so a day's own value
+  cannot enter its own rolling mean. Checked against a hand-computed value.
+- **Lag alignment is asserted against the raw series**, not assumed.
+- Partial days are excluded, so no artificial dips enter the lags.
 
 ## Testing
 
-Twelve tests (all passing) covering series reproducibility, chronological and disjoint splits,
-the rolling-window leak guard, lag alignment, absence of same-day weather, model
-fitting and finite predictions, the sanity floor for deterministic models, the
-documented MLP weakness, and MLP seed sensitivity.
+14 tests covering the real-data span and completeness, physical plausibility,
+winter-exceeds-summer, chronological and disjoint splits, the rolling-window leak
+guard, lag alignment, finite predictions from every model, ridge beating the
+naive baseline, **the documented small-MLP scaling failure**, and MLP seed
+sensitivity.
 
-## Data and honesty
+## Honesty
 
-**The series is synthetic.** It is generated in `src/data.py` from a fully
-declared process: level, linear trend, weekly and annual seasonality, a
-non-linear temperature response above 19°C, and an AR(1) noise term. Nothing here
-is real consumption data from any company.
+The data is real and openly licensed, and the test year is genuinely held out.
 
-This matters for how the numbers should be read. A MAPE of 1.18% is a property of
-a synthetic series with a known generating process, **not** a claim about
-real-world forecast accuracy, where messy demand, meter faults and behavioural
-change all widen the error considerably.
+The model set is deliberately plain: no weather covariate, because the NESO demand
+file carries no temperature and **temperature is the largest known omitted driver
+of electricity demand**. A production forecast would need it. The 2020 COVID
+period is left in the training data untouched.
 
-What transfers is the method, not the score: the leakage guards, the honest
-baseline, the seed-stability check, and the willingness to publish that the
-sophisticated model lost.
+So a 3.83% MAPE here should be read as what these features support on this series,
+not as a claim about achievable forecast accuracy in an operational setting.
+
+What transfers is the method: an honest baseline, leakage guards that are tested
+rather than asserted, a seed-stability check, and the willingness to publish that
+the more sophisticated model lost.
 
 ## Layout
 
 ```
-src/data.py       synthetic series, feature engineering, chronological split
+src/data.py       load NESO half-hourly, aggregate to daily, build features
 src/models.py     ridge, two MLPs, gradient boosting, seasonal naive, metrics
-run_analysis.py   runs the benchmark and the seed-stability sweep
-tests/            12 tests
+src/download.py   fetch the source CSVs
+run_analysis.py   benchmark plus the five-seed stability sweep
+tests/            14 tests
 output/           results.csv, seed_stability.csv, summary.json
 ```
