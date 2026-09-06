@@ -7,3 +7,4 @@ data/raw/
 .coverage
 coverage.xml
 htmlcov/
+docs/medium-article.md
