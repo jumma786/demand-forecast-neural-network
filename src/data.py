@@ -7,7 +7,9 @@ Licence: NESO Open Data Licence.
 Files are not committed (see .gitignore); `python -m src.download` fetches them.
 """
 from __future__ import annotations
+
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
 

@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
-from src.data import (make_series, add_features, chronological_split,
-                      FEATURES, TARGET)
-from src.models import build_models, evaluate, seasonal_naive, run_all
+
+from src.data import FEATURES, TARGET, add_features, chronological_split, make_series
+from src.models import build_models, evaluate, run_all, seasonal_naive
 
 
 @pytest.fixture(scope="module")

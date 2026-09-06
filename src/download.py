@@ -1,6 +1,6 @@
 """Fetch the NESO historic demand CSVs (not committed to git)."""
-from pathlib import Path
 import urllib.request
+from pathlib import Path
 
 RAW = Path(__file__).resolve().parent.parent / "data" / "raw"
 BASE = "https://api.neso.energy/dataset/8f2fe0af-871c-488d-8bad-960426f24601/resource"

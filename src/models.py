@@ -1,13 +1,14 @@
 """Four models on identical features and identical splits."""
 from __future__ import annotations
+
 import numpy as np
 import pandas as pd
-from sklearn.neural_network import MLPRegressor
-from sklearn.linear_model import Ridge
 from sklearn.ensemble import HistGradientBoostingRegressor
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import make_pipeline
+from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error
+from sklearn.neural_network import MLPRegressor
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 
 def seasonal_naive(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
